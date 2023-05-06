@@ -27,7 +27,7 @@ fn format_response(is_prime: bool) -> String {
 }
 
 fn handle_connection(stream: &mut TcpStream) {
-    info!("Established connection with: {:?}", stream.local_addr());
+    info!("Established connection with: {:?}", stream.peer_addr());
 
     let mut buffer = String::new();
     let bytes = stream
