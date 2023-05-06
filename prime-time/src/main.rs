@@ -30,9 +30,11 @@ fn handle_connection(stream: &mut TcpStream) {
     info!("Established connection with: {:?}", stream.local_addr());
 
     let mut buffer = String::new();
-    let _ = stream
+    let bytes = stream
         .read_to_string(&mut buffer)
         .expect("Cannot read TCP stream");
+
+    info!("Finished reading data to buffer. Read {} bytes.", bytes);
 
     let request: serde_json::Result<Value> = serde_json::from_str(&buffer);
     debug!("Payload: {:?}", request);
