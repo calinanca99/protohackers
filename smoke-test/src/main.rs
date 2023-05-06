@@ -1,4 +1,5 @@
 use std::{
+    env,
     io::{Read, Write},
     net::{TcpListener, TcpStream},
     thread,
@@ -18,15 +19,17 @@ fn handle_connection(mut stream: TcpStream) {
 
     // Write to stream
     let _ = stream.write(&buffer).expect("Cannot write to TCP stream");
+}
 
-    // Close the connection
-    // let _ = stream
-    //     .shutdown(std::net::Shutdown::Both)
-    //     .expect("Cannot shutdown connection");
+fn addr() -> &'static str {
+    match env::var("ENV") {
+        Ok(var) if var == "PROTO" => "0.0.0.0:8000",
+        Ok(_) | Err(_) => "127.0.0.1:8000",
+    }
 }
 
 fn main() -> std::io::Result<()> {
-    let addr = "127.0.0.1:8000";
+    let addr = addr();
     let listener = TcpListener::bind(addr)?;
     println!("Echo-server listening on: {}", addr);
 
