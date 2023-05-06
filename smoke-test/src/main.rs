@@ -6,22 +6,23 @@ use std::{
 
 fn handle_connection(mut stream: TcpStream) {
     // Read from stream
-    let mut buffer = String::new();
+    let mut buffer = vec![];
 
-    let _ = stream
-        .read_to_string(&mut buffer)
+    let bytes = stream
+        .read_to_end(&mut buffer)
         .expect("Cannot read TCP stream");
-    println!("Received: {:?}", buffer);
+
+    let addr = stream.local_addr();
+
+    println!("Read: {} bytes from {:?}.", bytes, addr);
 
     // Write to stream
-    let _ = stream
-        .write(&buffer.as_bytes())
-        .expect("Cannot write to TCP stream");
+    let _ = stream.write(&buffer).expect("Cannot write to TCP stream");
 
     // Close the connection
-    let _ = stream
-        .shutdown(std::net::Shutdown::Both)
-        .expect("Cannot shutdown connection");
+    // let _ = stream
+    //     .shutdown(std::net::Shutdown::Both)
+    //     .expect("Cannot shutdown connection");
 }
 
 fn main() -> std::io::Result<()> {
