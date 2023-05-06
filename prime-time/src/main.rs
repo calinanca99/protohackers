@@ -33,11 +33,10 @@ fn handle_connection(stream: &mut TcpStream) {
     let bytes = stream
         .read_to_string(&mut buffer)
         .expect("Cannot read TCP stream");
-
+    debug!("Payload: {:?}", buffer);
     info!("Finished reading data to buffer. Read {} bytes.", bytes);
 
     let request: serde_json::Result<Value> = serde_json::from_str(&buffer);
-    debug!("Payload: {:?}", request);
     if request.is_err() {
         handle_malformed_request(stream);
         return;
