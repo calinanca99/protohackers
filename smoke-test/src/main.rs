@@ -1,9 +1,10 @@
 use std::{
-    env,
     io::{Read, Write},
     net::{TcpListener, TcpStream},
     thread,
 };
+
+use utils::addr;
 
 fn handle_connection(mut stream: TcpStream) {
     // Read from stream
@@ -19,13 +20,6 @@ fn handle_connection(mut stream: TcpStream) {
 
     // Write to stream
     let _ = stream.write(&buffer).expect("Cannot write to TCP stream");
-}
-
-fn addr() -> &'static str {
-    match env::var("ENV") {
-        Ok(var) if var == "PROTO" => "0.0.0.0:8000",
-        Ok(_) | Err(_) => "127.0.0.1:8000",
-    }
 }
 
 fn main() -> std::io::Result<()> {
