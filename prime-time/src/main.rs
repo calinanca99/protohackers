@@ -28,14 +28,22 @@ fn handle_connection(stream: &mut TcpStream) {
 
     loop {
         let mut buffer = vec![0; 4096];
+        // Opt: Read buffered here
         let bytes = stream.read(&mut buffer).expect("Cannot read TCP stream");
+
+        let json_request = if let Some(b) = buffer.split(|c| *c == b'\n').nth(0) {
+            b
+        } else {
+            handle_malformed_request(stream);
+            return;
+        };
 
         // Reading 0 bytes means the connection is closed
         if bytes == 0 {
             break;
         }
 
-        let decoded_message = if let Ok(s) = String::from_utf8(buffer[..bytes].to_vec()) {
+        let decoded_message = if let Ok(s) = String::from_utf8(json_request.to_vec()) {
             s
         } else {
             handle_malformed_request(stream);
