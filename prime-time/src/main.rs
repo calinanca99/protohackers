@@ -28,7 +28,7 @@ fn handle_connection(stream: &mut TcpStream) {
     let mut buffer = vec![0; 4096];
     let bytes = stream.read(&mut buffer).expect("Cannot read TCP stream");
 
-    let decoded_message = String::from_utf8(buffer).unwrap();
+    let decoded_message = String::from_utf8(buffer[..bytes].to_vec()).unwrap();
 
     debug!("Payload: {:?}", decoded_message);
     info!("Finished reading data to buffer. Read {} bytes.", bytes);
