@@ -16,10 +16,6 @@ fn handle_malformed_request(stream: &mut TcpStream) {
     let _ = stream
         .write(malformed_response.as_bytes())
         .expect("Cannot write to TCP stream");
-
-    stream
-        .shutdown(std::net::Shutdown::Both)
-        .expect("Cannot shutdown Read side");
 }
 
 fn format_response(is_prime: bool) -> String {
@@ -29,14 +25,15 @@ fn format_response(is_prime: bool) -> String {
 fn handle_connection(stream: &mut TcpStream) {
     info!("Established connection with: {:?}", stream.peer_addr());
 
-    let mut buffer = String::new();
-    let bytes = stream
-        .read_to_string(&mut buffer)
-        .expect("Cannot read TCP stream");
-    debug!("Payload: {:?}", buffer);
+    let mut buffer = vec![0; 4096];
+    let bytes = stream.read(&mut buffer).expect("Cannot read TCP stream");
+
+    let decoded_message = String::from_utf8(buffer).unwrap();
+
+    debug!("Payload: {:?}", decoded_message);
     info!("Finished reading data to buffer. Read {} bytes.", bytes);
 
-    let request: serde_json::Result<Value> = serde_json::from_str(&buffer);
+    let request: serde_json::Result<Value> = serde_json::from_str(&decoded_message);
     if request.is_err() {
         handle_malformed_request(stream);
         return;
