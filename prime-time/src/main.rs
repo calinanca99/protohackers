@@ -12,13 +12,13 @@ use utils::addr;
 fn handle_malformed_request(stream: &mut TcpStream, tid: ThreadId) {
     let malformed_response = format!("{}\n", json!({"result": "failure"}));
 
-    debug!("{:?} - Malformed response: {:?}", tid, malformed_response);
-
     match stream.write(malformed_response.as_bytes()) {
         Ok(b) if b == 0 => {
             error!("{:?} - Connection dropped", tid);
         }
-        Ok(_b) => return,
+        Ok(_b) => {
+            debug!("{:?} - Malformed response: {:?}", tid, malformed_response);
+        }
         Err(e) => {
             error!("{:?} - {:?}", tid, e);
         }
@@ -99,13 +99,15 @@ fn handle_connection(stream: &mut TcpStream, tid: ThreadId) {
                 };
 
                 let response = format!("{}\n", json!({"method": "isPrime", "prime": is_prime}));
-                debug!("{:?} - Response: {:?}", tid, response);
 
                 match stream.write(response.as_bytes()) {
                     Ok(b) if b == 0 => {
                         error!("{:?} - Connection dropped", tid);
                     }
-                    Ok(_b) => break,
+                    Ok(_b) => {
+                        debug!("{:?} - Response: {:?}", tid, response);
+                        continue;
+                    }
                     Err(e) => {
                         error!("{:?} - {:?}", tid, e);
                         continue;
