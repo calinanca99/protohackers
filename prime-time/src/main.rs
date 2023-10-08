@@ -108,7 +108,7 @@ fn handle_connection(stream: &mut TcpStream, tid: ThreadId) {
                     Ok(_b) => break,
                     Err(e) => {
                         error!("{:?} - {:?}", tid, e);
-                        break;
+                        continue;
                     }
                 }
             }
