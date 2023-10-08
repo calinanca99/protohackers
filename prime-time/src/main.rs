@@ -1,6 +1,5 @@
 use env_logger::Env;
 use log::{debug, error, info};
-use primes::is_prime;
 use serde_json::{json, Value};
 use std::{
     io::{Read, Write},
@@ -89,10 +88,10 @@ fn handle_connection(stream: &mut TcpStream, tid: ThreadId) {
                         false
                     } else {
                         // Any i64 larger than 0 fits in an u64
-                        is_prime(number as u64)
+                        is_prime::is_prime((number as u64).to_string().as_ref())
                     }
                 } else {
-                    is_prime(number.as_u64().unwrap())
+                    is_prime::is_prime(number.as_u64().unwrap().to_string().as_ref())
                 };
 
                 let response = format!("{}\n", json!({"method": "isPrime", "prime": is_prime}));
