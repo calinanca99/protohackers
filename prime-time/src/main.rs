@@ -1,8 +1,8 @@
 use env_logger::Env;
-use log::{debug, error, info};
+use log::{debug, error, info, warn};
 use serde_json::{json, Value};
 use std::{
-    io::{Read, Write},
+    io::{BufRead, BufReader, Write},
     net::{TcpListener, TcpStream},
     thread::{self, ThreadId},
 };
@@ -21,51 +21,36 @@ fn handle_malformed_request(stream: &mut TcpStream, tid: ThreadId) {
     }
 }
 
-fn handle_connection(stream: &mut TcpStream, tid: ThreadId) {
+fn handle_connection(mut stream: TcpStream, tid: ThreadId) {
     info!(
         "{:?} - Established connection with: {:?}",
         tid,
         stream.peer_addr()
     );
 
+    let mut buffer = BufReader::new(stream.try_clone().unwrap());
     loop {
-        let mut buffer = vec![0; 4096];
-        // Opt: Read buffered here
-        let bytes = match stream.read(&mut buffer) {
-            // Client is disconnected
-            Ok(b) if b == 0 => break,
-            Ok(b) => b,
+        let mut json_request = String::new();
+        match buffer.read_line(&mut json_request) {
+            Ok(b) if b == 0 => {
+                warn!("{:?} - Client disconnected", tid);
+                break;
+            }
+            Ok(b) => {
+                info!("Read a JSON payload of size {} bytes", b)
+            }
             Err(e) => {
                 error!("{:?} - Cannot read from socket: {:?}", tid, e);
                 continue;
             }
-        };
+        }
 
-        let json_request = match buffer[..bytes].split(|c| *c == b'\n').nth(0) {
-            Some(json) => json,
-            None => {
-                error!("{:?} - No JSON request in the payload", tid);
-                handle_malformed_request(stream, tid);
-                return;
-            }
-        };
+        debug!("{:?} - Payload: {:?}", tid, json_request);
 
-        let decoded_message = match String::from_utf8(json_request.to_vec()) {
-            Ok(message) => message,
-            Err(e) => {
-                error!("{:?} - Invalid UTF8: {:?}", tid, e);
-                handle_malformed_request(stream, tid);
-                return;
-            }
-        };
-
-        debug!("{:?} - Payload: {:?}", tid, decoded_message);
-        info!("{:?} - Read {} bytes", tid, bytes);
-
-        match serde_json::from_str::<Value>(&decoded_message) {
+        match serde_json::from_str::<Value>(&json_request) {
             Ok(request) => {
                 if request.get("method").is_none() || request.get("number").is_none() {
-                    handle_malformed_request(stream, tid);
+                    handle_malformed_request(&mut stream, tid);
                     return;
                 }
 
@@ -73,7 +58,7 @@ fn handle_connection(stream: &mut TcpStream, tid: ThreadId) {
                 let number = request["number"].clone();
 
                 if method != json!("isPrime") || !number.is_number() {
-                    handle_malformed_request(stream, tid);
+                    handle_malformed_request(&mut stream, tid);
                     return;
                 }
 
@@ -111,7 +96,7 @@ fn handle_connection(stream: &mut TcpStream, tid: ThreadId) {
             }
             Err(e) => {
                 error!("{:?} - Invalid JSON: {:?}", tid, e);
-                handle_malformed_request(stream, tid);
+                handle_malformed_request(&mut stream, tid);
                 return;
             }
         }
@@ -133,8 +118,8 @@ fn main() -> std::io::Result<()> {
     let listener = TcpListener::bind(addr)?;
     info!("Server listening on: {}", addr);
 
-    for mut stream in listener.incoming().flatten() {
-        thread::spawn(move || handle_connection(&mut stream, thread::current().id()));
+    for stream in listener.incoming().flatten() {
+        thread::spawn(move || handle_connection(stream, thread::current().id()));
     }
 
     Ok(())
