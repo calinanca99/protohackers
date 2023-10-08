@@ -29,7 +29,11 @@ fn handle_connection(stream: &mut TcpStream) {
     loop {
         let mut buffer = vec![0; 4096];
         // Opt: Read buffered here
-        let bytes = stream.read(&mut buffer).expect("Cannot read TCP stream");
+        let bytes = if let Ok(b) = stream.read(&mut buffer) {
+            b
+        } else {
+            break;
+        };
 
         let json_request = if let Some(b) = buffer.split(|c| *c == b'\n').nth(0) {
             b
