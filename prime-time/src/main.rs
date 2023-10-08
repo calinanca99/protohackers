@@ -40,7 +40,7 @@ fn handle_connection(stream: &mut TcpStream, tid: ThreadId) {
             Ok(b) if b == 0 => break,
             Ok(b) => b,
             Err(e) => {
-                error!("{:?}", e);
+                error!("{:?} - {:?}", tid, e);
                 continue;
             }
         };
@@ -115,7 +115,7 @@ fn handle_connection(stream: &mut TcpStream, tid: ThreadId) {
                 }
             }
             Err(e) => {
-                error!("{:?}", e);
+                error!("{:?} - {:?}", tid, e);
                 handle_malformed_request(stream, tid);
                 return;
             }
