@@ -14,9 +14,15 @@ fn handle_malformed_request(stream: &mut TcpStream, tid: ThreadId) {
 
     debug!("{:?} - Malformed response: {:?}", tid, malformed_response);
 
-    let _ = stream
-        .write(malformed_response.as_bytes())
-        .expect("Cannot write to TCP stream");
+    match stream.write(malformed_response.as_bytes()) {
+        Ok(b) if b == 0 => {
+            error!("{:?} - Connection dropped", tid);
+        }
+        Ok(_b) => return,
+        Err(e) => {
+            error!("{:?} - {:?}", tid, e);
+        }
+    }
 }
 
 fn handle_connection(stream: &mut TcpStream, tid: ThreadId) {
@@ -76,7 +82,7 @@ fn handle_connection(stream: &mut TcpStream, tid: ThreadId) {
                 }
 
                 // At this point it's known that `number` is a valid JSON number
-                debug!("Checking if {:?} is prime", number);
+                debug!("{:?} - Checking if {:?} is prime", tid, number);
                 let is_prime: bool = if number.is_f64() {
                     false
                 } else if number.is_i64() {
@@ -93,11 +99,18 @@ fn handle_connection(stream: &mut TcpStream, tid: ThreadId) {
                 };
 
                 let response = format!("{}\n", json!({"method": "isPrime", "prime": is_prime}));
-                debug!("Response: {:?}", response);
+                debug!("{:?} - Response: {:?}", tid, response);
 
-                let _ = stream
-                    .write(response.as_bytes())
-                    .expect("Cannot write to TCP stream");
+                match stream.write(response.as_bytes()) {
+                    Ok(b) if b == 0 => {
+                        error!("{:?} - Connection dropped", tid);
+                    }
+                    Ok(_b) => break,
+                    Err(e) => {
+                        error!("{:?} - {:?}", tid, e);
+                        break;
+                    }
+                }
             }
             Err(e) => {
                 error!("{:?}", e);
