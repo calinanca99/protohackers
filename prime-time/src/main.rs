@@ -16,7 +16,7 @@ fn handle_malformed_request(stream: &mut TcpStream, tid: ThreadId) {
             debug!("{:?} - Malformed response: {:?}", tid, malformed_response);
         }
         Err(e) => {
-            error!("{:?} - {:?}", tid, e);
+            error!("{:?} - Cannot write to socket: {:?}", tid, e);
         }
     }
 }
@@ -36,7 +36,7 @@ fn handle_connection(stream: &mut TcpStream, tid: ThreadId) {
             Ok(b) if b == 0 => break,
             Ok(b) => b,
             Err(e) => {
-                error!("{:?} - {:?}", tid, e);
+                error!("{:?} - Cannot read from socket: {:?}", tid, e);
                 continue;
             }
         };
@@ -53,7 +53,7 @@ fn handle_connection(stream: &mut TcpStream, tid: ThreadId) {
         let decoded_message = match String::from_utf8(json_request.to_vec()) {
             Ok(message) => message,
             Err(e) => {
-                error!("{:?} - {:?}", tid, e);
+                error!("{:?} - Invalid UTF8: {:?}", tid, e);
                 handle_malformed_request(stream, tid);
                 return;
             }
@@ -102,13 +102,13 @@ fn handle_connection(stream: &mut TcpStream, tid: ThreadId) {
                         continue;
                     }
                     Err(e) => {
-                        error!("{:?} - {:?}", tid, e);
+                        error!("{:?} - Cannot write to socket: {:?}", tid, e);
                         continue;
                     }
                 }
             }
             Err(e) => {
-                error!("{:?} - {:?}", tid, e);
+                error!("{:?} - Invalid JSON: {:?}", tid, e);
                 handle_malformed_request(stream, tid);
                 return;
             }
