@@ -77,6 +77,8 @@ fn handle_connection(stream: &mut TcpStream, tid: ThreadId) {
                     return;
                 }
 
+                debug!("{:?} - JSON number {:?}", tid, number);
+
                 // At this point it's known that `number` is a valid JSON number
                 debug!("{:?} - Checking if {:?} is prime", tid, number);
                 let is_prime: bool = if number.is_f64() {
