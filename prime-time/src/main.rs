@@ -139,8 +139,7 @@ fn main() -> std::io::Result<()> {
     info!("Server listening on: {}", addr);
 
     for mut stream in listener.incoming().flatten() {
-        let tid = thread::current().id();
-        thread::spawn(move || handle_connection(&mut stream, tid));
+        thread::spawn(move || handle_connection(&mut stream, thread::current().id()));
     }
 
     Ok(())
