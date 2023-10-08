@@ -19,7 +19,8 @@ fn handle_malformed_request(stream: &mut TcpStream) {
 }
 
 fn format_response(is_prime: bool) -> String {
-    json!({"method": "isPrime", "prime": is_prime}).to_string()
+    let json = json!({"method": "isPrime", "prime": is_prime});
+    format!("{json}\n")
 }
 
 fn handle_connection(stream: &mut TcpStream) {
