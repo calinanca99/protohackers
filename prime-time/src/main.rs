@@ -26,59 +26,72 @@ fn format_response(is_prime: bool) -> String {
 fn handle_connection(stream: &mut TcpStream) {
     info!("Established connection with: {:?}", stream.peer_addr());
 
-    let mut buffer = vec![0; 4096];
-    let bytes = stream.read(&mut buffer).expect("Cannot read TCP stream");
+    loop {
+        let mut buffer = vec![0; 4096];
+        let bytes = stream.read(&mut buffer).expect("Cannot read TCP stream");
 
-    let decoded_message = String::from_utf8(buffer[..bytes].to_vec()).unwrap();
-
-    debug!("Payload: {:?}", decoded_message);
-    info!("Finished reading data to buffer. Read {} bytes.", bytes);
-
-    let request: serde_json::Result<Value> = serde_json::from_str(&decoded_message);
-    if request.is_err() {
-        handle_malformed_request(stream);
-        return;
-    }
-
-    let request = request.unwrap();
-
-    if request.get("method").is_none() || request.get("number").is_none() {
-        handle_malformed_request(stream);
-        return;
-    }
-
-    let method = &request["method"];
-    let number = &request["number"];
-
-    if *method != json!("isPrime") || !number.is_number() {
-        handle_malformed_request(stream);
-        return;
-    }
-
-    // At this point it's known that `number` is a valid JSON number
-    debug!("Checking if {:?} is prime.", number);
-    let is_prime: bool = if number.is_f64() {
-        false
-    } else if number.is_i64() {
-        let number = number.as_i64().unwrap();
-
-        if number < 0 {
-            false
-        } else {
-            // Any i64 larger than 0 fits in an u64
-            is_prime(number as u64)
+        // Reading 0 bytes means the connection is closed
+        if bytes == 0 {
+            break;
         }
-    } else {
-        is_prime(number.as_u64().unwrap())
-    };
 
-    let response = format_response(is_prime);
-    debug!("Response: {:?}", response);
-    info!("Sending response...");
+        let decoded_message = if let Ok(s) = String::from_utf8(buffer[..bytes].to_vec()) {
+            s
+        } else {
+            handle_malformed_request(stream);
+            return;
+        };
 
-    let _ = stream
-        .write(response.as_bytes())
-        .expect("Cannot write to TCP stream");
+        debug!("Payload: {:?}", decoded_message);
+        info!("Read {} bytes", bytes);
+
+        let request: serde_json::Result<Value> = serde_json::from_str(&decoded_message);
+        if request.is_err() {
+            handle_malformed_request(stream);
+            return;
+        }
+
+        let request = request.unwrap();
+
+        if request.get("method").is_none() || request.get("number").is_none() {
+            handle_malformed_request(stream);
+            return;
+        }
+
+        let method = &request["method"];
+        let number = &request["number"];
+
+        if *method != json!("isPrime") || !number.is_number() {
+            handle_malformed_request(stream);
+            return;
+        }
+
+        // At this point it's known that `number` is a valid JSON number
+        debug!("Checking if {:?} is prime", number);
+        let is_prime: bool = if number.is_f64() {
+            false
+        } else if number.is_i64() {
+            let number = number.as_i64().unwrap();
+
+            if number < 0 {
+                false
+            } else {
+                // Any i64 larger than 0 fits in an u64
+                is_prime(number as u64)
+            }
+        } else {
+            is_prime(number.as_u64().unwrap())
+        };
+
+        let response = format_response(is_prime);
+        debug!("Response: {:?}", response);
+
+        let _ = stream
+            .write(response.as_bytes())
+            .expect("Cannot write to TCP stream");
+    }
+
+    info!("Ending connection with: {:?}", stream.peer_addr());
 }
 
 fn main() -> std::io::Result<()> {
