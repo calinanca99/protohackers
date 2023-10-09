@@ -19,6 +19,12 @@ fn handle_malformed_request(stream: &mut TcpStream, tid: ThreadId) {
             error!("{:?} - Cannot write to socket: {:?}", tid, e);
         }
     }
+
+    info!(
+        "{:?} - Ending connection with: {:?}",
+        tid,
+        stream.peer_addr()
+    );
 }
 
 fn handle_connection(mut stream: TcpStream, tid: ThreadId) {
@@ -50,16 +56,14 @@ fn handle_connection(mut stream: TcpStream, tid: ThreadId) {
         match serde_json::from_str::<Value>(&json_request) {
             Ok(request) => {
                 if request.get("method").is_none() || request.get("number").is_none() {
-                    handle_malformed_request(&mut stream, tid);
-                    return;
+                    return handle_malformed_request(&mut stream, tid);
                 }
 
                 let method = request["method"].clone();
                 let number = request["number"].clone();
 
                 if method != json!("isPrime") || !number.is_number() {
-                    handle_malformed_request(&mut stream, tid);
-                    return;
+                    return handle_malformed_request(&mut stream, tid);
                 }
 
                 debug!("{:?} - JSON number {:?}", tid, number);
@@ -86,18 +90,15 @@ fn handle_connection(mut stream: TcpStream, tid: ThreadId) {
                 match stream.write_all(response.as_bytes()) {
                     Ok(_) => {
                         debug!("{:?} - Response: {:?}", tid, response);
-                        continue;
                     }
                     Err(e) => {
                         error!("{:?} - Cannot write to socket: {:?}", tid, e);
-                        continue;
                     }
                 }
             }
             Err(e) => {
                 error!("{:?} - Invalid JSON: {:?}", tid, e);
-                handle_malformed_request(&mut stream, tid);
-                return;
+                return handle_malformed_request(&mut stream, tid);
             }
         }
     }
