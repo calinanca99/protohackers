@@ -78,9 +78,39 @@ impl Response {
     }
 }
 
+impl InsertMessage {
+    fn process(&self, session_prices: &mut SessionPrices) -> ProjectResult<()> {
+        match session_prices.entry(self.timestamp) {
+            std::collections::btree_map::Entry::Vacant(entry) => {
+                entry.insert(self.price);
+                Ok(())
+            }
+            std::collections::btree_map::Entry::Occupied(_) => Err("timestamp already exists"),
+        }
+    }
+}
+
+impl QueryMessage {
+    fn process(&self, session_prices: &SessionPrices) -> ProjectResult<Price> {
+        let sum = session_prices
+            .range(self.min_time..=self.max_time)
+            .map(|(_ts, price)| *price)
+            .sum::<i32>();
+        let length =
+            match i32::try_from(session_prices.range(self.min_time..=self.max_time).count()) {
+                Ok(v) => v,
+                Err(_) => return Err("cannot compute average"),
+            };
+
+        let average = sum / length;
+
+        Ok(average)
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::{InsertMessage, QueryMessage, Request, Response};
+    use crate::{InsertMessage, QueryMessage, Request, Response, SessionPrices};
 
     #[test]
     fn parses_an_insert_message_to_a_request() {
@@ -136,5 +166,40 @@ mod tests {
 
         // 19 * 256 + 243 == 5107
         assert_eq!([0, 0, 19, 243], bytes)
+    }
+
+    #[test]
+    fn process_a_session() {
+        // Arrange
+        let mut session_prices = SessionPrices::new();
+
+        let i1 = InsertMessage {
+            timestamp: 100,
+            price: 100,
+        };
+
+        let i2 = InsertMessage {
+            timestamp: 105,
+            price: 102,
+        };
+
+        let i3 = InsertMessage {
+            timestamp: 103,
+            price: 102,
+        };
+
+        let q1 = QueryMessage {
+            min_time: 100,
+            max_time: 103,
+        };
+
+        // Act
+        i1.process(&mut session_prices).unwrap();
+        i2.process(&mut session_prices).unwrap();
+        i3.process(&mut session_prices).unwrap();
+        let mean = q1.process(&session_prices).unwrap();
+
+        // Assert
+        assert_eq!(mean, 101);
     }
 }
