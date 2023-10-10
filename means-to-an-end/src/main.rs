@@ -4,20 +4,25 @@ use std::{
 };
 
 use env_logger::Env;
-use log::{error, info};
+use log::{debug, error, info};
 use means_to_an_end::{Request, SessionPrices};
 use utils::addr;
 
 type Tid = Option<usize>;
 
 fn handle_connection(mut connection: TcpStream, tid: Tid) {
-    info!("Established connection with: {:?}", connection.peer_addr());
+    info!(
+        "{:?} - Established connection with: {:?}",
+        tid,
+        connection.peer_addr()
+    );
 
     let mut session_prices = SessionPrices::new();
     let mut reader = BufReader::new(connection.try_clone().unwrap());
     loop {
         let mut buffer = [0; 9];
         if let Err(e) = reader.read_exact(&mut buffer) {
+            debug!("{:?}", buffer);
             error!(
                 "{:?} - Cannot read from the socket. Dropping connection: {:?}",
                 tid, e
@@ -75,7 +80,7 @@ fn main() {
     env_logger::init_from_env(env);
 
     let listener = TcpListener::bind(addr()).expect("Cannot bind to address");
-    info!("Started listening on: {:?}", listener);
+    info!("Started listening on: {:?}", addr());
 
     for stream in listener.incoming() {
         match stream {
