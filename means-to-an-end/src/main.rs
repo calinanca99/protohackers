@@ -34,6 +34,7 @@ fn handle_connection(mut connection: TcpStream, tid: ThreadId) {
                 match insert_message.process(&mut session_prices) {
                     Ok(_) => {
                         info!("{:?} - Processed insert message {:?}", tid, insert_message);
+                        continue;
                     }
                     Err(e) => {
                         error!(
@@ -52,20 +53,23 @@ fn handle_connection(mut connection: TcpStream, tid: ThreadId) {
                             tid,
                             mean,
                             connection.peer_addr()
-                        )
+                        );
+                        continue;
                     }
                     Err(e) => {
                         error!(
                             "{:?} - Cannot write to socket. Dropping connection: {:?}",
                             tid, e
                         );
+                        return;
                     }
                 },
                 Err(e) => {
                     error!(
                         "{:?} - Cannot process query message {:?}. Dropping connection: {:?}",
                         tid, query_message, e
-                    )
+                    );
+                    return;
                 }
             },
             Err(e) => {
