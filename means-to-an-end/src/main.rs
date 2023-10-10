@@ -6,27 +6,8 @@ use std::{
 
 use env_logger::Env;
 use log::{debug, error, info};
-use means_to_an_end::{ProjectResult, Request, SessionPrices};
+use means_to_an_end::{Request, SessionPrices};
 use utils::addr;
-
-fn read_all<T: Read>(source: &mut T, buf: &mut [u8], size: usize) -> ProjectResult<()> {
-    let mut read = 0;
-
-    loop {
-        match source.read(&mut buf[read..]) {
-            Ok(b) if b == 0 => return Err("client closed connection"),
-            Ok(b) => {
-                read += b;
-                if read > size {
-                    break;
-                }
-            }
-            Err(_) => return Err("cannot read socket data"),
-        }
-    }
-
-    Ok(())
-}
 
 fn handle_connection(mut connection: TcpStream, tid: ThreadId) {
     info!(
@@ -37,8 +18,8 @@ fn handle_connection(mut connection: TcpStream, tid: ThreadId) {
 
     let mut session_prices = SessionPrices::new();
     loop {
-        let mut buffer = [0; 512];
-        if let Err(e) = read_all(&mut connection, &mut buffer, 9) {
+        let mut buffer = [0; 9];
+        if let Err(e) = connection.read_exact(&mut buffer) {
             debug!("{:?} - Buffer: {:?}", tid, buffer);
             error!(
                 "{:?} - Cannot read from the socket. Dropping connection: {:?}",
@@ -47,8 +28,8 @@ fn handle_connection(mut connection: TcpStream, tid: ThreadId) {
             return;
         };
 
-        debug!("{:?} - Buffer: {:?}", tid, &buffer[..9]);
-        match Request::new(&buffer[..9]) {
+        debug!("{:?} - Buffer: {:?}", tid, buffer);
+        match Request::new(&buffer) {
             Ok(Request::Insert(insert_message)) => {
                 match insert_message.process(&mut session_prices) {
                     Ok(_) => {
