@@ -54,10 +54,6 @@ impl Request {
                 let min_time = Self::to_i32(&bytes[1..5])?;
                 let max_time = Self::to_i32(&bytes[5..])?;
 
-                if min_time > max_time {
-                    return Err("min_time is higher than max_time");
-                }
-
                 Ok(Self::Query(QueryMessage { min_time, max_time }))
             }
             _ => Err("Unknown message type"),
@@ -92,6 +88,10 @@ impl InsertMessage {
 
 impl QueryMessage {
     pub fn process(&self, session_prices: &SessionPrices) -> ProjectResult<Price> {
+        if self.min_time > self.max_time {
+            return Ok(0);
+        }
+
         let sum = session_prices
             .range(self.min_time..=self.max_time)
             .map(|(_ts, price)| *price)
