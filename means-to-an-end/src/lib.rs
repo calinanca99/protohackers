@@ -96,15 +96,15 @@ impl QueryMessage {
 
         let sum = session_prices
             .range(self.min_time..=self.max_time)
-            .map(|(_ts, price)| *price)
-            .sum::<i32>();
+            .map(|(_ts, price)| *price as i64)
+            .sum::<i64>();
         let length =
-            match i32::try_from(session_prices.range(self.min_time..=self.max_time).count()) {
+            match i64::try_from(session_prices.range(self.min_time..=self.max_time).count()) {
                 Ok(v) => v,
                 Err(_) => return Err("cannot compute average"),
             };
 
-        Ok(sum / length)
+        Ok((sum / length) as i32)
     }
 }
 
