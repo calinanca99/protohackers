@@ -102,9 +102,10 @@ impl QueryMessage {
                 Err(_) => return Err("cannot compute average"),
             };
 
-        let average = sum / length;
-
-        Ok(average)
+        match sum.checked_div(length) {
+            Some(avg) => Ok(avg),
+            None => Err("cannot divide by 0"),
+        }
     }
 }
 
