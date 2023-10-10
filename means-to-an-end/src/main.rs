@@ -61,7 +61,12 @@ fn handle_connection(mut connection: TcpStream, tid: ThreadId) {
                         );
                     }
                 },
-                Err(_) => todo!(),
+                Err(e) => {
+                    error!(
+                        "{:?} - Cannot process query message {:?}. Dropping connection: {:?}",
+                        tid, query_message, e
+                    )
+                }
             },
             Err(e) => {
                 error!(
