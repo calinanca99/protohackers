@@ -1,6 +1,7 @@
 use std::{
     io::{Read, Write},
     net::{TcpListener, TcpStream},
+    thread::{self, ThreadId},
 };
 
 use env_logger::Env;
@@ -8,9 +9,7 @@ use log::{debug, error, info};
 use means_to_an_end::{Request, SessionPrices};
 use utils::addr;
 
-type Tid = Option<usize>;
-
-fn handle_connection(mut connection: TcpStream, tid: Tid) {
+fn handle_connection(mut connection: TcpStream, tid: ThreadId) {
     info!(
         "{:?} - Established connection with: {:?}",
         tid,
@@ -18,7 +17,6 @@ fn handle_connection(mut connection: TcpStream, tid: Tid) {
     );
 
     let mut session_prices = SessionPrices::new();
-    // let mut reader = BufReader::new(connection.try_clone().unwrap());
     loop {
         let mut buffer = [0; 9];
         if let Err(e) = connection.read_exact(&mut buffer) {
@@ -86,7 +84,7 @@ fn main() {
     for stream in listener.incoming() {
         match stream {
             Ok(connection) => {
-                rayon::spawn(move || handle_connection(connection, rayon::current_thread_index()))
+                thread::spawn(move || handle_connection(connection, thread::current().id()));
             }
             Err(e) => {
                 error!("Could not establish connection: {:?}", e)
