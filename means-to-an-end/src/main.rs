@@ -22,7 +22,7 @@ fn handle_connection(mut connection: TcpStream, tid: Tid) {
     loop {
         let mut buffer = [0; 9];
         if let Err(e) = reader.read_exact(&mut buffer) {
-            debug!("{:?}", buffer);
+            debug!("{:?} - Buffer: {:?}", tid, buffer);
             error!(
                 "{:?} - Cannot read from the socket. Dropping connection: {:?}",
                 tid, e
@@ -30,6 +30,7 @@ fn handle_connection(mut connection: TcpStream, tid: Tid) {
             return;
         };
 
+        debug!("{:?} - Buffer: {:?}", tid, buffer);
         match Request::new(&buffer) {
             Ok(Request::Insert(insert_message)) => {
                 match insert_message.process(&mut session_prices) {
