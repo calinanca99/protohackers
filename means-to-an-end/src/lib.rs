@@ -39,7 +39,7 @@ pub type Price = i32;
 /// Represents the prices associated with a session.
 pub type SessionPrices = BTreeMap<Timestamp, Price>;
 
-type ProjectResult<T> = Result<T, &'static str>;
+pub type ProjectResult<T> = Result<T, &'static str>;
 
 impl Request {
     pub fn new(bytes: &[u8]) -> Result<Self, &'static str> {
