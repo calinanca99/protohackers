@@ -2,7 +2,6 @@ use std::{
     io::{Read, Write},
     net::{TcpListener, TcpStream},
     thread::{self, ThreadId},
-    time::Duration,
 };
 
 use env_logger::Env;
@@ -17,23 +16,15 @@ fn handle_connection(mut connection: TcpStream, tid: ThreadId) {
         connection.peer_addr()
     );
 
-    let timeout = Some(Duration::from_secs(10));
-    if connection.set_read_timeout(timeout).is_err()
-        || connection.set_write_timeout(timeout).is_err()
-    {
-        return;
-    }
-
     let mut session_prices = SessionPrices::new();
     loop {
         let mut buffer = [0; 9];
         if let Err(e) = connection.read_exact(&mut buffer) {
-            debug!("{:?} - Buffer: {:?}", tid, buffer);
             error!(
                 "{:?} - Cannot read from the socket. Dropping connection: {:?}",
                 tid, e
             );
-            return;
+            break;
         };
 
         debug!("{:?} - Buffer: {:?}", tid, buffer);
@@ -49,7 +40,7 @@ fn handle_connection(mut connection: TcpStream, tid: ThreadId) {
                             "{:?} - Cannot process insert message {:?}. Dropping connection: {:?}",
                             tid, insert_message, e
                         );
-                        return;
+                        break;
                     }
                 }
             }
@@ -69,7 +60,7 @@ fn handle_connection(mut connection: TcpStream, tid: ThreadId) {
                             "{:?} - Cannot write to socket. Dropping connection: {:?}",
                             tid, e
                         );
-                        return;
+                        break;
                     }
                 },
                 Err(e) => {
@@ -77,7 +68,7 @@ fn handle_connection(mut connection: TcpStream, tid: ThreadId) {
                         "{:?} - Cannot process query message {:?}. Dropping connection: {:?}",
                         tid, query_message, e
                     );
-                    return;
+                    break;
                 }
             },
             Err(e) => {
@@ -85,10 +76,16 @@ fn handle_connection(mut connection: TcpStream, tid: ThreadId) {
                     "{:?} - Cannot parse request. Dropping connection: {:?}",
                     tid, e
                 );
-                return;
+                break;
             }
         }
     }
+
+    info!(
+        "{:?} - Dropping connection with: {:?}",
+        tid,
+        connection.peer_addr()
+    );
 }
 
 fn main() {
