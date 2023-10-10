@@ -1,5 +1,5 @@
 use std::{
-    io::{Read, Write},
+    io::{BufReader, Read, Write},
     net::{TcpListener, TcpStream},
     thread::{self, ThreadId},
 };
@@ -15,11 +15,12 @@ fn handle_connection(mut connection: TcpStream, tid: ThreadId) {
         tid,
         connection.peer_addr()
     );
+    let mut reader = BufReader::new(connection.try_clone().unwrap());
 
     let mut session_prices = SessionPrices::new();
     loop {
         let mut buffer = [0; 9];
-        if let Err(e) = connection.read_exact(&mut buffer) {
+        if let Err(e) = reader.read_exact(&mut buffer) {
             error!(
                 "{:?} - Cannot read from the socket. Dropping connection: {:?}",
                 tid, e

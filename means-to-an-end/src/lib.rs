@@ -88,23 +88,25 @@ impl InsertMessage {
 
 impl QueryMessage {
     pub fn process(&self, session_prices: &SessionPrices) -> ProjectResult<Price> {
-        if self.min_time > self.max_time
-            || session_prices.range(self.min_time..=self.max_time).count() == 0
-        {
+        let ts_range = self.min_time..=self.max_time;
+        let prices_in_range = session_prices.range(ts_range.clone()).count();
+        if self.min_time > self.max_time || prices_in_range == 0 {
             return Ok(0);
         }
 
         let sum = session_prices
-            .range(self.min_time..=self.max_time)
+            .range(ts_range)
             .map(|(_ts, price)| *price as i64)
             .sum::<i64>();
-        let length =
-            match i64::try_from(session_prices.range(self.min_time..=self.max_time).count()) {
-                Ok(v) => v,
-                Err(_) => return Err("cannot compute average"),
-            };
+        let length = match i64::try_from(prices_in_range) {
+            Ok(v) => v,
+            Err(_) => return Err("cannot compute average"),
+        };
 
-        Ok((sum / length) as i32)
+        match i32::try_from(sum / length) {
+            Ok(res) => Ok(res),
+            Err(_) => Err("cannot compute average"),
+        }
     }
 }
 
