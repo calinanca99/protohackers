@@ -88,7 +88,9 @@ impl InsertMessage {
 
 impl QueryMessage {
     pub fn process(&self, session_prices: &SessionPrices) -> ProjectResult<Price> {
-        if self.min_time > self.max_time {
+        if self.min_time > self.max_time
+            || session_prices.range(self.min_time..=self.max_time).count() == 0
+        {
             return Ok(0);
         }
 
@@ -102,10 +104,7 @@ impl QueryMessage {
                 Err(_) => return Err("cannot compute average"),
             };
 
-        match sum.checked_div(length) {
-            Some(avg) => Ok(avg),
-            None => Err("cannot divide by 0"),
-        }
+        Ok(sum / length)
     }
 }
 
