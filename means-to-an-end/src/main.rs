@@ -2,6 +2,7 @@ use std::{
     io::{Read, Write},
     net::{TcpListener, TcpStream},
     thread::{self, ThreadId},
+    time::Duration,
 };
 
 use env_logger::Env;
@@ -15,6 +16,13 @@ fn handle_connection(mut connection: TcpStream, tid: ThreadId) {
         tid,
         connection.peer_addr()
     );
+
+    let timeout = Some(Duration::from_secs(10));
+    if connection.set_read_timeout(timeout).is_err()
+        || connection.set_write_timeout(timeout).is_err()
+    {
+        return;
+    }
 
     let mut session_prices = SessionPrices::new();
     loop {
