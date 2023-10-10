@@ -79,7 +79,7 @@ impl Response {
 }
 
 impl InsertMessage {
-    fn process(&self, session_prices: &mut SessionPrices) -> ProjectResult<()> {
+    pub fn process(&self, session_prices: &mut SessionPrices) -> ProjectResult<()> {
         match session_prices.entry(self.timestamp) {
             std::collections::btree_map::Entry::Vacant(entry) => {
                 entry.insert(self.price);
@@ -91,7 +91,7 @@ impl InsertMessage {
 }
 
 impl QueryMessage {
-    fn process(&self, session_prices: &SessionPrices) -> ProjectResult<Price> {
+    pub fn process(&self, session_prices: &SessionPrices) -> ProjectResult<Price> {
         let sum = session_prices
             .range(self.min_time..=self.max_time)
             .map(|(_ts, price)| *price)
