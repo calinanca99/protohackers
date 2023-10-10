@@ -88,9 +88,14 @@ impl InsertMessage {
 
 impl QueryMessage {
     pub fn process(&self, session_prices: &SessionPrices) -> ProjectResult<Price> {
+        if self.min_time > self.max_time {
+            return Ok(0);
+        }
+
         let ts_range = self.min_time..=self.max_time;
         let prices_in_range = session_prices.range(ts_range.clone()).count();
-        if self.min_time > self.max_time || prices_in_range == 0 {
+
+        if prices_in_range == 0 {
             return Ok(0);
         }
 
