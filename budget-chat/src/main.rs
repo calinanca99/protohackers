@@ -7,7 +7,7 @@ use std::{
 use anyhow::bail;
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
-    net::{TcpListener, TcpStream},
+    net::{tcp::OwnedWriteHalf, TcpListener, TcpStream},
     sync::{Mutex, RwLock},
 };
 
@@ -18,7 +18,7 @@ impl Username {
     // The username must have at least one character and consist
     // entirely of alphanumeric characters.
     fn new(name: String) -> anyhow::Result<Self> {
-        // Add validation
+        // TODO: Add validation
         Ok(Self(name))
     }
 }
@@ -29,13 +29,15 @@ impl Display for Username {
     }
 }
 
+type WriteStream = OwnedWriteHalf;
+
 #[derive(Clone, Debug)]
 struct Connection {
-    stream: Arc<Mutex<TcpStream>>,
+    stream: Arc<Mutex<WriteStream>>,
 }
 
 impl Connection {
-    fn new(stream: Arc<Mutex<TcpStream>>) -> Self {
+    fn new(stream: Arc<Mutex<WriteStream>>) -> Self {
         Self { stream }
     }
 }
@@ -60,11 +62,11 @@ impl Db {
 
     async fn add_user(
         &mut self,
-        username: Username,
+        username: &Username,
         connection: &Connection,
     ) -> anyhow::Result<()> {
         let mut state = self.active_users.write().await;
-        match state.entry(username) {
+        match state.entry(username.clone()) {
             Entry::Occupied(_) => {
                 eprintln!("Username is taken");
                 bail!("Username is taken");
@@ -75,19 +77,22 @@ impl Db {
         Ok(())
     }
 
-    fn remove_user(&mut self, username: Username) {
-        todo!()
+    async fn remove_user(&mut self, username: &Username) {
+        let mut state = self.active_users.write().await;
+        state.remove(username);
     }
 }
 
-async fn handle_connection(mut stream: TcpStream, mut db: Db) -> anyhow::Result<()> {
-    stream
-        .write_all("Welcome to budgetchat! What shall I call you?\n".as_bytes())
+async fn handle_connection(stream: TcpStream, mut db: Db) -> anyhow::Result<()> {
+    let (rs, mut ws) = stream.into_split();
+
+    ws.write_all("Welcome to budgetchat! What shall I call you?\n".as_bytes())
         .await?;
 
-    let buf_reader = BufReader::new(&mut stream);
+    let buf_reader = BufReader::new(rs);
+    let mut buf_lines = buf_reader.lines();
 
-    let username = match buf_reader.lines().next_line().await? {
+    let username = match buf_lines.next_line().await? {
         Some(username) => Username::new(username)?,
         None => {
             println!("Client disconnected");
@@ -113,14 +118,27 @@ async fn handle_connection(mut stream: TcpStream, mut db: Db) -> anyhow::Result<
     let room_has_members = !active_users_names.is_empty();
     if room_has_members {
         let active_users_list = active_users_names.join(", ");
-        stream
-            .write_all(format!("* The room contains: {}\n", active_users_list).as_bytes())
+        ws.write_all(format!("* The room contains: {}\n", active_users_list).as_bytes())
             .await?;
     }
 
-    let stream = Arc::new(Mutex::new(stream));
-    let connection = Connection::new(stream.clone());
-    db.add_user(username, &connection).await?;
+    let write_stream = Arc::new(Mutex::new(ws));
+    let connection = Connection::new(write_stream.clone());
+    db.add_user(&username, &connection).await?;
+
+    while let Some(line) = buf_lines.next_line().await? {
+        // TODO: Send message to other users
+        println!("New message: {line}")
+    }
+
+    db.remove_user(&username).await;
+    let active_users = db.get_users().await;
+    for connection in active_users.values() {
+        let mut stream = connection.stream.lock().await;
+        stream
+            .write_all(format!("* {} has left the room\n", username).as_bytes())
+            .await?;
+    }
 
     Ok(())
 }
@@ -138,9 +156,12 @@ async fn main() {
         match listener.accept().await {
             Ok((stream, _)) => {
                 let active_users = active_users.clone();
-                if let Err(e) = handle_connection(stream, active_users).await {
-                    eprintln!("{e}")
-                }
+
+                tokio::spawn(async move {
+                    if let Err(e) = handle_connection(stream, active_users).await {
+                        eprintln!("{e}");
+                    }
+                });
             }
             Err(e) => {
                 eprintln!("{e}")
