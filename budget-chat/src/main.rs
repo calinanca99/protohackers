@@ -1,13 +1,14 @@
 use std::{
-    collections::HashMap,
-    sync::{Arc, RwLock},
+    collections::{hash_map::Entry, HashMap},
+    fmt::Display,
+    sync::Arc,
 };
 
 use anyhow::bail;
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
     net::{TcpListener, TcpStream},
-    sync::Mutex,
+    sync::{Mutex, RwLock},
 };
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -19,6 +20,12 @@ impl Username {
     fn new(name: String) -> anyhow::Result<Self> {
         // Add validation
         Ok(Self(name))
+    }
+}
+
+impl Display for Username {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 
@@ -47,16 +54,23 @@ impl Db {
         }
     }
 
-    fn get_users(&self) -> impl IntoIterator<Item = Username> {
-        vec![]
+    async fn get_users(&self) -> Users {
+        self.active_users.read().await.clone()
     }
 
-    fn add_user(&mut self, username: Username, connection: &Connection) -> anyhow::Result<()> {
-        let mut state = self.active_users.write().unwrap();
-        if state.insert(username, connection.clone()).is_some() {
-            eprintln!("Username is taken");
-            bail!("Username is taken");
-        }
+    async fn add_user(
+        &mut self,
+        username: Username,
+        connection: &Connection,
+    ) -> anyhow::Result<()> {
+        let mut state = self.active_users.write().await;
+        match state.entry(username) {
+            Entry::Occupied(_) => {
+                eprintln!("Username is taken");
+                bail!("Username is taken");
+            }
+            Entry::Vacant(e) => e.insert(connection.clone()),
+        };
 
         Ok(())
     }
@@ -70,7 +84,6 @@ async fn handle_connection(mut stream: TcpStream, mut db: Db) -> anyhow::Result<
     stream
         .write_all("Welcome to budgetchat! What shall I call you?\n".as_bytes())
         .await?;
-    stream.flush().await?;
 
     let buf_reader = BufReader::new(&mut stream);
 
@@ -82,9 +95,32 @@ async fn handle_connection(mut stream: TcpStream, mut db: Db) -> anyhow::Result<
         }
     };
 
+    // Announce chat that another user joined
+    let active_users = db.get_users().await;
+    for connection in active_users.values() {
+        let mut stream = connection.stream.lock().await;
+        stream
+            .write_all(format!("* {} has entered the room\n", username).as_bytes())
+            .await?;
+    }
+
+    // Present to current user who's in the room (if any)
+    let active_users_names = active_users
+        .keys()
+        .map(|k| format!("{k}"))
+        .collect::<Vec<String>>();
+
+    let room_has_members = !active_users_names.is_empty();
+    if room_has_members {
+        let active_users_list = active_users_names.join(", ");
+        stream
+            .write_all(format!("* The room contains: {}\n", active_users_list).as_bytes())
+            .await?;
+    }
+
     let stream = Arc::new(Mutex::new(stream));
     let connection = Connection::new(stream.clone());
-    db.add_user(username, &connection)?;
+    db.add_user(username, &connection).await?;
 
     Ok(())
 }
