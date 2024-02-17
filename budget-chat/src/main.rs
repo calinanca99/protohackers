@@ -127,8 +127,17 @@ async fn handle_connection(stream: TcpStream, mut db: Db) -> anyhow::Result<()> 
     db.add_user(&username, &connection).await?;
 
     while let Some(line) = buf_lines.next_line().await? {
-        // TODO: Send message to other users
-        println!("New message: {line}")
+        let users = db.get_users().await;
+        let other_users = users
+            .iter()
+            .filter(|(u, _)| **u != username)
+            .map(|(_, c)| c);
+        for connection in other_users {
+            let mut stream = connection.stream.lock().await;
+            stream
+                .write_all(format!("[{}] {}\n", username, line).as_bytes())
+                .await?;
+        }
     }
 
     db.remove_user(&username).await;
