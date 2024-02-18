@@ -121,12 +121,9 @@ async fn handle_connection(stream: TcpStream, mut db: Db) -> anyhow::Result<()> 
         .map(|k| format!("{k}"))
         .collect::<Vec<String>>();
 
-    let room_has_members = !active_users_names.is_empty();
-    if room_has_members {
-        let active_users_list = active_users_names.join(", ");
-        ws.write_all(format!("* The room contains: {}\n", active_users_list).as_bytes())
-            .await?;
-    }
+    let active_users_list = active_users_names.join(", ");
+    ws.write_all(format!("* The room contains: {}\n", active_users_list).as_bytes())
+        .await?;
 
     let write_stream = Arc::new(Mutex::new(ws));
     let connection = Connection::new(write_stream.clone());
@@ -164,6 +161,8 @@ async fn main() {
     let listener = TcpListener::bind(addr)
         .await
         .expect("Cannot bind TCP listener");
+
+    println!("Listening on: {addr}");
 
     let active_users = Db::new();
 
