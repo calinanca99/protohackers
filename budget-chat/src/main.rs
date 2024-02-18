@@ -18,7 +18,13 @@ impl Username {
     // The username must have at least one character and consist
     // entirely of alphanumeric characters.
     fn new(name: String) -> anyhow::Result<Self> {
-        // TODO: Add validation
+        let missing_name = name.is_empty(); /* This allows names with only whitespace */
+        let not_alpha_numeric = name.chars().any(|c| !c.is_alphanumeric());
+
+        if missing_name || not_alpha_numeric {
+            bail!("Username is not valid")
+        }
+
         Ok(Self(name))
     }
 }
