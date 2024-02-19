@@ -4,5 +4,5 @@ pub use protocol::*;
 mod db;
 pub use db::Db;
 
-mod connection;
-pub use connection::Connection;
+mod packet_handler;
+pub use packet_handler::PacketHandler;
