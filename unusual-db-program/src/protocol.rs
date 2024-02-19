@@ -1,3 +1,4 @@
+pub const MAX_MESSAGE_SIZE_BYTES: usize = 1000;
 pub const VERSION_SPECIAL_KEY: &str = "version";
 
 #[derive(Debug, PartialEq)]

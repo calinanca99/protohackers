@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use tokio::net::UdpSocket;
 
-use unusual_db_program::{Db, PacketHandler};
+use unusual_db_program::{Db, PacketHandler, MAX_MESSAGE_SIZE_BYTES};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -16,7 +16,7 @@ async fn main() -> anyhow::Result<()> {
         let socket = socket.clone();
         let db = db.clone();
 
-        let mut buf = [0; 1000];
+        let mut buf = [0; MAX_MESSAGE_SIZE_BYTES];
         let (bytes, peer) = socket.recv_from(&mut buf).await?;
 
         tokio::task::spawn(async move {
