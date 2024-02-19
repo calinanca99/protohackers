@@ -7,3 +7,5 @@
 1. [Prime Time](https://protohackers.com/problem/1)
 2. [Means to an End](https://protohackers.com/problem/2)
 3. [Budget Chat](https://protohackers.com/problem/3)
+4. [Unusual Database Program](https://protohackers.com/problem/4)
+
